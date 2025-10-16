@@ -1,0 +1,76 @@
+{
+  "env": "hr_experts",
+  "model_provider": "fireworks",
+  "model": "qwen3-coder-480b-a35b-instruct",
+  "num_trials": 3,
+  "temperature": 1,
+  "interface_num": 1,
+  "task": {
+    "user_id": "10",
+    "instruction": "You are Leo Valdez (leo.valdez@company.com), a Finance Administrator. You need to process an expense claim for employee Anya Sharma (anya.sharma@company.com). She submitted an expense report for 'Team Dinner' amounting to $350 that needs your approval before reimbursement. Process the reimbursement to her linked bank account and ensure the transaction is logged for auditing.",
+    "actions": [
+      {
+        "name": "discover_user_employee_entities",
+        "arguments": { "entity_type": "users", "filters": { "email": "leo.valdez@company.com" }},
+        "output": { "count": 1, "results": [{"user_id": "10", "role": "finance_administrator"}]}
+      },
+      {
+        "name": "discover_user_employee_entities",
+        "arguments": { "entity_type": "users", "filters": { "email": "anya.sharma@company.com" }},
+        "output": { "count": 1, "results": [{"user_id": "77"}]}
+      },
+      {
+        "name": "discover_user_employee_entities",
+        "arguments": { "entity_type": "employees", "filters": { "user_id": "77" }},
+        "output": { "count": 1, "results": [{"employee_id": "120"}]}
+      },
+      {
+        "name": "discover_expense_entities",
+        "arguments": { "entity_type": "expense_reports", "filters": { "employee_id": "120", "status": "submitted" }},
+        "output": { "count": 1, "results": [{"report_id": "601", "description": "Team Dinner", "amount": 350}]}
+      },
+      {
+        "name": "check_approval",
+        "arguments": { "action": "approve_expenses", "requester_email": "leo.valdez@company.com"},
+        "output": { "approved": true}
+      },
+      {
+        "name": "manage_expense_reimbursements",
+        "arguments": { "action": "update", "report_id": "601", "expense_data": { "status": "approved", "approved_by": "10" }},
+        "output": { "success": true, "report_id": "601"}
+      },
+      {
+        "name": "manage_payroll_deduction",
+        "arguments": { "action": "create", "deduction_data": { "employee_id": "120", "deduction_type": "reimbursement", "amount": 350, "effective_date": "2025-10-20"}},
+        "output": { "success": true, "deduction_id": "950"}
+      },
+      {
+        "name": "manage_audit_logs",
+        "arguments": { "action": "create", "operation": "update", "reference_type": "expense_reports", "reference_id": "601", "field_name": "status", "old_value": "submitted", "new_value": "approved", "user_id": "10"},
+        "output": { "success": true, "log_id": "7001"}
+      },
+      {
+        "name": "manage_audit_logs",
+        "arguments": { "action": "create", "operation": "create", "reference_type": "payroll_deductions", "reference_id": "950", "user_id": "10"},
+        "output": { "success": true, "log_id": "7002"}
+      }
+    ],
+    "edges": [
+      { "from": "instruction", "to": "discover_user_employee_entities", "connection": { "output": "entity_type, email", "input": "entity_type, filters.email" }},
+      { "from": "discover_user_employee_entities", "to": "discover_user_employee_entities", "connection": { "output": "entity_type, results[0].user_id", "input": "entity_type, filters.user_id" }},
+      { "from": "discover_user_employee_entities", "to": "discover_expense_entities", "connection": { "output": "results[0].employee_id", "input": "filters.employee_id" }},
+      { "from": "instruction", "to": "discover_expense_entities", "connection": { "output": "entity_type, status", "input": "entity_type, filters.status" }},
+      { "from": "instruction", "to": "check_approval", "connection": { "output": "action, requester_email", "input": "action, requester_email" }},
+      { "from": "discover_expense_entities", "to": "manage_expense_reimbursements", "connection": { "output": "results[0].report_id", "input": "report_id" }},
+      { "from": "instruction", "to": "manage_expense_reimbursements", "connection": { "output": "action, status, user_id", "input": "action, expense_data.status, expense_data.approved_by" }},
+      { "from": "discover_user_employee_entities", "to": "manage_payroll_deduction", "connection": { "output": "results[0].employee_id", "input": "deduction_data.employee_id" }},
+      { "from": "instruction", "to": "manage_payroll_deduction", "connection": { "output": "action, deduction_type, amount, effective_date", "input": "action, deduction_data.deduction_type, deduction_data.amount, deduction_data.effective_date" }},
+      { "from": "manage_expense_reimbursements", "to": "manage_audit_logs", "connection": { "output": "report_id", "input": "reference_id" }},
+      { "from": "instruction", "to": "manage_audit_logs", "connection": { "output": "action, operation, reference_type, field_name, old_value, new_value, user_id", "input": "action, operation, reference_type, field_name, old_value, new_value, user_id" }},
+      { "from": "manage_payroll_deduction", "to": "manage_audit_logs", "connection": { "output": "deduction_id", "input": "reference_id" }},
+      { "from": "instruction", "to": "manage_audit_logs", "connection": { "output": "user_id", "input": "user_id" }}
+    ],
+    "outputs": ["601", "950"],
+    "num_edges": 13
+  }
+}
